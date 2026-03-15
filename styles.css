@@ -115,7 +115,7 @@ h1 {
     background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
     color: white;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 0px;
 }
 
 .btn-tiny {
@@ -253,7 +253,7 @@ h1 {
     flex-wrap: wrap;
     justify-content: center;
     z-index: 10;
-    width: 550px;
+    width: 625px;
     max-width: 95vw;
     position: relative;
 }
@@ -275,20 +275,20 @@ h1 {
 /* Left bar - rotated 90deg, positioned at left edge */
 .left-bar {
     position: fixed;
-    left: -236px;
+    left: -270px;
     top: 50%;
     transform: translateY(-50%) rotate(90deg);
-    width: 550px;
+    width: 625px;
     max-width: calc(100vh - 20px);
 }
 
 /* Right bar - rotated -90deg, positioned at right edge */
 .right-bar {
     position: fixed;
-    right: -235px;
+    right: -270px;
     top: 50%;
     transform: translateY(-50%) rotate(-90deg);
-    width: 550px;
+    width: 625px;
     max-width: calc(100vh - 20px);
 }
 
