@@ -5,7 +5,7 @@
 </p>
 
 <p align="left">
-  <a href="https://gbitcode.github.io/homepocker/">🎮 Play Now</a>
+  <a href="https://gbitcode.github.io/homepoker/">🎮 Play Now</a>
 </p>
 
 A simple, free, offline Texas Hold'em poker game tracker for home games with friends.
