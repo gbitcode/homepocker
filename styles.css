@@ -199,7 +199,7 @@ h1 {
 
 .rotate-btn {
     position: absolute;
-    top: 5px;
+    top: 11px;
     right: 5px;
     width: 28px;
     height: 28px;
@@ -253,8 +253,9 @@ h1 {
     flex-wrap: wrap;
     justify-content: center;
     z-index: 10;
-    width: 580px;
+    width: 650px;
     max-width: 95vw;
+    position: relative;
 }
 
 .top-bar {
@@ -274,20 +275,20 @@ h1 {
 /* Left bar - rotated 90deg, positioned at left edge */
 .left-bar {
     position: fixed;
-    left: -260px;
+    left: -295px;
     top: 50%;
     transform: translateY(-50%) rotate(90deg);
-    width: 580px;
+    width: 650px;
     max-width: calc(100vh - 20px);
 }
 
 /* Right bar - rotated -90deg, positioned at right edge */
 .right-bar {
     position: fixed;
-    right: -260px;
+    right: -295px;
     top: 50%;
     transform: translateY(-50%) rotate(-90deg);
-    width: 580px;
+    width: 650px;
     max-width: calc(100vh - 20px);
 }
 
@@ -353,39 +354,6 @@ h1 {
     margin-top: 0;
 }
 
-/* Menu Corner - Right Bottom */
-/* Menu Corner - Right Bottom */
-.menu-corner {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    z-index: 20;
-}
-
-/* Legend Corner - Left Bottom */
-.legend-corner {
-    position: fixed;
-    bottom: 10px;
-    left: 10px;
-    z-index: 20;
-}
-
-/* Combinations Corner - Top Left */
-.combinations-corner {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 20;
-}
-
-/* Fullscreen Corner - Top Right */
-.fullscreen-corner {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 20;
-}
-
 /* Hand Rankings Cards */
 .hand-rankings {
     list-style: none;
@@ -428,16 +396,19 @@ h1 {
 }
 
 .menu-dropdown {
-    position: fixed;
-    bottom: 50px;
-    right: 10px;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.95);
     border-radius: 8px;
     padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 5px;
-    min-width: 110px;
+    min-width: 130px;
+    margin-bottom: 5px;
+    z-index: 100;
 }
 
 .menu-dropdown button {
@@ -648,6 +619,7 @@ h1 {
 }
 
 .btn-plus, .btn-minus {
+    padding: 5px 30px 6px 22px;
     background: rgba(255, 255, 255, 0.3);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.5);
@@ -663,7 +635,7 @@ h1 {
 }
 
 .raise-input {
-    width: 50px;
+    width: 98px;
     padding: 4px 6px;
     font-size: 0.85rem;
     border: none;
@@ -714,6 +686,7 @@ h1 {
     max-height: 80vh;
     overflow-y: auto;
     text-align: center;
+    transform-origin: center center;
 }
 
 .modal-content h2 {
@@ -721,8 +694,14 @@ h1 {
 }
 
 .guide-content {
-    max-width: 400px;
+    max-width: 700px;
     text-align: left;
+}
+
+.guide-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
 }
 
 .guide-section {

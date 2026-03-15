@@ -1,4 +1,21 @@
 // Texas Hold'em Poker Tracker
+
+// Rotate modal content 90 degrees
+function rotateModal(btn) {
+    const modal = btn.closest('.modal');
+    const content = modal.querySelector('.modal-content');
+    const current = content.style.transform;
+    if (current === 'rotate(90deg)') {
+        content.style.transform = 'rotate(180deg)';
+    } else if (current === 'rotate(180deg)') {
+        content.style.transform = 'rotate(270deg)';
+    } else if (current === 'rotate(270deg)') {
+        content.style.transform = '';
+    } else {
+        content.style.transform = 'rotate(90deg)';
+    }
+}
+
 (function($) {
     'use strict';
 
@@ -860,66 +877,91 @@
         $('#cancel-refill-btn').on('click', hideRefillModal);
 
         // Menu
-        $('#menu-btn').on('click', (e) => {
+        let currentMenuBar = null;
+
+        // Map bar to rotation angle
+        const barRotations = {
+            'top-bar': '180deg',
+            'bottom-bar': '0deg',
+            'left-bar': '90deg',
+            'right-bar': '-90deg'
+        };
+
+        $('[id^="menu-btn"]').on('click', function(e) {
             e.stopPropagation();
-            $('#menu-dropdown').toggle();
+            const $bar = $(this).closest('.control-bar');
+            const classes = $bar.attr('class').split(' ');
+            currentMenuBar = classes.find(c => c === 'top-bar' || c === 'bottom-bar' || c === 'left-bar' || c === 'right-bar');
+            $bar.find('.menu-dropdown').toggle();
         });
+
         $(document).on('click', (e) => {
-            if (!$(e.target).closest('.menu-corner').length) {
-                $('#menu-dropdown').hide();
+            if (!$(e.target).closest('.menu-dropdown, [id^="menu-btn"]').length) {
+                $('.menu-dropdown').hide();
             }
         });
 
-        // Save game
-        $('#save-game-btn').on('click', () => {
-            if (GameState.players.length > 0) {
-                saveGame();
-                const playerNames = GameState.players.map(p => p.name).slice(0, 3).join(', ') + (GameState.players.length > 3 ? '...' : '');
-                const gameName = `${playerNames} - ${new Date().toLocaleDateString()}`;
-                saveGameToList(GameState, gameName);
-                $('#menu-dropdown').hide();
-                alert('Game saved!');
-            } else {
-                alert('No game to save.');
+        // Menu actions
+        $('.menu-dropdown button').on('click', function() {
+            const action = $(this).data('action');
+            const $dropdown = $(this).closest('.menu-dropdown');
+            const rotation = barRotations[currentMenuBar] || '0deg';
+
+            console.log('Menu action:', action, '| Bar:', currentMenuBar, '| Rotation:', rotation);
+            $dropdown.hide();
+
+            if (action === 'save') {
+                if (GameState.players.length > 0) {
+                    saveGame();
+                    const playerNames = GameState.players.map(p => p.name).slice(0, 3).join(', ') + (GameState.players.length > 3 ? '...' : '');
+                    const gameName = `${playerNames} - ${new Date().toLocaleDateString()}`;
+                    saveGameToList(GameState, gameName);
+                    alert('Game saved!');
+                } else {
+                    alert('No game to save.');
+                }
+            } else if (action === 'legend') {
+                const content = document.querySelector('#legend-modal .modal-content');
+                content.style.transform = `rotate(${rotation})`;
+                document.getElementById('legend-modal').style.display = 'flex';
+            } else if (action === 'combinations') {
+                const content = document.querySelector('#combinations-modal .modal-content');
+                content.style.transform = `rotate(${rotation})`;
+                document.getElementById('combinations-modal').style.display = 'flex';
+            } else if (action === 'guide') {
+                const content = document.querySelector('#guide-modal .modal-content');
+                content.style.transform = `rotate(${rotation})`;
+                document.getElementById('guide-modal').style.display = 'flex';
+            } else if (action === 'end') {
+                if (confirm('End game and return to setup?')) {
+                    saveGame();
+                    GameState.players = [];
+                    GameState.pot = 0;
+                    GameState.currentBet = 0;
+                    GameState.phase = 'waiting';
+                    GameState.isHandInProgress = false;
+                    localStorage.removeItem(STORAGE_KEY);
+                    location.reload();
+                }
+            } else if (action === 'fullscreen') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log('Error attempting fullscreen:', err);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
             }
         });
 
         // Guide
-        $('#guide-btn').on('click', () => { $('#guide-modal').show(); $('#menu-dropdown').hide(); });
         $('#close-guide-btn').on('click', () => $('#guide-modal').hide());
 
         // Legend
-        $('#legend-btn').on('click', () => { $('#legend-modal').show(); });
         $('#close-legend-btn').on('click', () => $('#legend-modal').hide());
 
         // Combinations
-        $('#combinations-btn').on('click', () => { $('#combinations-modal').show(); });
         $('#close-combinations-btn').on('click', () => $('#combinations-modal').hide());
-
-        // Fullscreen
-        $('#fullscreen-btn').on('click', () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log('Error attempting fullscreen:', err);
-                });
-            } else {
-                document.exitFullscreen();
-            }
-        });
-
-        // Save Game
-        $('#save-game-btn').on('click', () => {
-            if (GameState.players.length > 0) {
-                saveGame();
-                const playerNames = GameState.players.map(p => p.name).slice(0, 3).join(', ') + (GameState.players.length > 3 ? '...' : '');
-                const gameName = `${playerNames} - ${new Date().toLocaleDateString()}`;
-                saveGameToList(GameState, gameName);
-                alert('Game saved!');
-                $('#menu-dropdown').hide();
-            } else {
-                alert('No players in game.');
-            }
-        });
 
         // Game controls - use class selector for all control bars
         $(document).on('click', '.next-phase-btn', function() {
@@ -935,21 +977,6 @@
 
         $(document).on('click', '.end-hand-btn', function() {
             if (GameState.isHandInProgress && confirm('End hand and select winner?')) showWinnerModal();
-        });
-        $('#end-game-btn').on('click', () => {
-            if (confirm('End game and return to setup?')) {
-                // Save current game to the list before ending
-                if (GameState.players.length > 0) {
-                    const playerNames = GameState.players.map(p => p.name).slice(0, 3).join(', ') + (GameState.players.length > 3 ? '...' : '');
-                    const gameName = `${playerNames} - ${new Date().toLocaleDateString()}`;
-                    saveGameToList(GameState, gameName);
-                }
-                // Clear current game so it doesn't auto-load on refresh
-                clearSavedGame();
-                GameState.players = [];
-                showSetupScreen();
-                $('#load-game-btn').show();
-            }
         });
 
         // Winner modal
