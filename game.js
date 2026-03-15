@@ -455,11 +455,68 @@ function rotateModal(btn) {
     }
 
     function awardPot(winners) {
-        const share = GameState.pot / winners.length;
+        // Get all non-folded players with their total bets
+        const contenders = GameState.players
+            .filter(p => !p.folded)
+            .map(p => ({ name: p.name, bet: p.totalBetThisHand }))
+            .sort((a, b) => a.bet - b.bet);
+
+        if (contenders.length === 0 || winners.length === 0) return;
+
+        // Calculate minimum bet among winners (they can only win up to what they contributed)
+        const winnerBets = winners.map(w => {
+            const c = contenders.find(c => c.name === w.name);
+            return c ? c.bet : 0;
+        });
+        const minWinnerBet = Math.min(...winnerBets);
+
+        // Main pot: minWinnerBet * number of contenders
+        // Each winner can only win minWinnerBet from each contender
+        const mainPotPerPlayer = minWinnerBet;
+        const mainPotTotal = mainPotPerPlayer * contenders.length;
+
+        // Award main pot to winners
+        const mainShare = mainPotTotal / winners.length;
         winners.forEach(w => {
             const idx = GameState.players.findIndex(p => p.name === w.name);
-            if (idx !== -1) GameState.players[idx].balance += share;
+            if (idx !== -1) GameState.players[idx].balance += mainShare;
         });
+
+        // Side pots: excess contributions from players who bet more than minWinnerBet
+        contenders.forEach(c => {
+            const excess = c.bet - minWinnerBet;
+            if (excess > 0.001) {
+                // This excess goes to players who bet more than minWinnerBet
+                // Or back to the contributor if no one else can contest
+                const eligibleWinners = winners.filter(w => {
+                    const winnerBet = contenders.find(cont => cont.name === w.name)?.bet || 0;
+                    return winnerBet >= c.bet;
+                });
+
+                if (eligibleWinners.length > 0) {
+                    const sideShare = excess / eligibleWinners.length;
+                    eligibleWinners.forEach(w => {
+                        const idx = GameState.players.findIndex(p => p.name === w.name);
+                        if (idx !== -1) GameState.players[idx].balance += sideShare;
+                    });
+                } else {
+                    // No eligible winner - return to contributor
+                    const idx = GameState.players.findIndex(p => p.name === c.name);
+                    if (idx !== -1) GameState.players[idx].balance += excess;
+                }
+            }
+        });
+
+        // Any remaining pot from folded players goes to winners
+        const totalContributed = contenders.reduce((sum, c) => sum + c.bet, 0);
+        const foldedContributions = GameState.pot - totalContributed;
+        if (foldedContributions > 0.001 && winners.length > 0) {
+            const foldedShare = foldedContributions / winners.length;
+            winners.forEach(w => {
+                const idx = GameState.players.findIndex(p => p.name === w.name);
+                if (idx !== -1) GameState.players[idx].balance += foldedShare;
+            });
+        }
 
         GameState.pot = 0;
         GameState.isHandInProgress = false;
