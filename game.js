@@ -686,11 +686,17 @@ function rotateModal(btn) {
                         updateInput();
                     });
 
-                    const $raiseRow = $('<div class="raise-row">');
-                    $raiseRow.append($minusBtn);
-                    $raiseRow.append($raiseInput);
-                    $raiseRow.append($plusBtn);
-                    $raiseSection.append($raiseRow);
+                    // Left side: buttons and input
+                    const $raiseLeft = $('<div class="raise-left">');
+                    const $btnRow = $('<div class="raise-btn-row">');
+                    $btnRow.append($minusBtn);
+                    $btnRow.append($plusBtn);
+                    $raiseLeft.append($btnRow);
+
+                    const $inputRow = $('<div class="raise-input-row">');
+                    $inputRow.append($raiseInput);
+                    $raiseLeft.append($inputRow);
+                    $raiseSection.append($raiseLeft);
 
                     const $raiseBtn = $('<button class="btn btn-warning btn-raise">Raise</button>');
                     $raiseBtn.on('click', () => {

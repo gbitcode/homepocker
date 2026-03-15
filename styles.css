@@ -607,25 +607,32 @@ h1 {
     border-radius: 6px;
     padding: 5px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
 }
 
-.raise-row {
+.raise-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.raise-btn-row {
     display: flex;
     gap: 4px;
-    justify-content: center;
-    align-items: center;
+}
+
+.raise-input-row {
+    display: flex;
 }
 
 .btn-plus, .btn-minus {
-    padding: 5px 30px 6px 22px;
+    padding: 5px 12px;
     background: rgba(255, 255, 255, 0.3);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.5);
-    width: 32px;
-    height: 28px;
-    flex: none;
+    flex: 1;
     font-size: 1rem;
     font-weight: bold;
 }
@@ -635,7 +642,7 @@ h1 {
 }
 
 .raise-input {
-    width: 98px;
+    width: 100%;
     padding: 4px 6px;
     font-size: 0.85rem;
     border: none;
@@ -644,11 +651,11 @@ h1 {
     background: rgba(255, 255, 255, 0.95);
     color: #333;
     font-weight: bold;
+    box-sizing: border-box;
 }
 
 .btn-raise {
-    width: 100%;
-    padding: 6px;
+    width: 50%;
     font-size: 0.8rem;
     font-weight: 600;
 }
