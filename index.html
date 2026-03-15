@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="screen">
+            <h1>Poker Tracker</h1>
+            <div class="setup-container">
+                <div class="settings-row">
+                    <div class="input-group">
+                        <label for="starting-balance">Starting Balance</label>
+                        <input type="number" id="starting-balance" value="100" step="0.1" min="1">
+                        <div class="recommended-text" id="recommended-blinds"></div>
+                    </div>
+                    <div class="input-group">
+                        <label for="small-blind">Small Blind</label>
+                        <input type="number" id="small-blind" value="0.5" step="0.1" min="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label for="big-blind">Big Blind</label>
+                        <input type="number" id="big-blind" value="1" step="0.1" min="0.1">
+                    </div>
+                </div>
+
+                <button id="start-game-btn" class="btn btn-primary">Start New Game</button>
+                <button id="forget-all-btn" class="btn btn-danger">Clear All Data</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen" style="display: none;">
+            <!-- Top Bar -->
+            <div class="control-bar top-bar">
+                <div class="pot-display">
+                    <span class="label">POT</span>
+                    <span class="pot-amount">0</span>
+                </div>
+                <div class="phase-display">
+                    <span class="round-phase">Waiting</span>
+                </div>
+                <div class="blinds-display">
+                    <span class="current-blinds">SB: 0.5 / BB: 1</span>
+                    <div class="blinds-controls">
+                        <button class="btn btn-tiny btn-decrease decrease-blinds">-</button>
+                        <button class="btn btn-tiny increase-blinds">+</button>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary next-phase-btn">Start Hand</button>
+                    <button class="btn btn-secondary end-hand-btn">End Hand</button>
+                </div>
+            </div>
+
+            <!-- Players Grid -->
+            <div class="players-grid">
+                <div class="players-row" id="players-top">
+                    <!-- Players 0, 1, 2 will be rendered here -->
+                </div>
+                <div class="players-row" id="players-bottom">
+                    <!-- Players 3, 4, 5 will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div class="control-bar bottom-bar">
+                <div class="pot-display">
+                    <span class="label">POT</span>
+                    <span class="pot-amount">0</span>
+                </div>
+                <div class="phase-display">
+                    <span class="round-phase">Waiting</span>
+                </div>
+                <div class="blinds-display">
+                    <span class="current-blinds">SB: 0.5 / BB: 1</span>
+                    <div class="blinds-controls">
+                        <button class="btn btn-tiny btn-decrease decrease-blinds">-</button>
+                        <button class="btn btn-tiny increase-blinds">+</button>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary next-phase-btn">Start Hand</button>
+                    <button class="btn btn-secondary end-hand-btn">End Hand</button>
+                </div>
+            </div>
+
+            <!-- Right Bottom Corner - Menu -->
+            <div class="menu-corner">
+                <button id="menu-btn" class="btn btn-menu">☰</button>
+                <div id="menu-dropdown" class="menu-dropdown" style="display: none;">
+                    <button id="guide-btn">Guide</button>
+                    <button id="end-game-btn">End Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Game Modal -->
+        <div id="join-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Join Game</h2>
+                <div class="input-group">
+                    <label for="join-name">Player Name</label>
+                    <input type="text" id="join-name" placeholder="Enter your name" maxlength="15">
+                </div>
+                <div class="modal-buttons">
+                    <button id="confirm-join-btn" class="btn btn-primary">Join</button>
+                    <button id="cancel-join-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Refill Balance Modal -->
+        <div id="refill-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Add Balance</h2>
+                <p id="refill-player-name"></p>
+                <div class="input-group">
+                    <label for="refill-amount">Amount to Add</label>
+                    <input type="number" id="refill-amount" value="0" step="0.1" min="0">
+                </div>
+                <div class="modal-buttons">
+                    <button id="confirm-refill-btn" class="btn btn-primary">Add</button>
+                    <button id="cancel-refill-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guide Modal -->
+        <div id="guide-modal" class="modal" style="display: none;">
+            <div class="modal-content guide-content">
+                <h2>How to Use</h2>
+                <div class="guide-section">
+                    <h3>Setup</h3>
+                    <ul>
+                        <li>Set starting balance and blinds</li>
+                        <li>Click "Start New Game"</li>
+                        <li>Players join by clicking empty seats</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>Game Flow</h3>
+                    <ul>
+                        <li>2+ players needed to start a hand</li>
+                        <li>Click "Start Hand" when ready</li>
+                        <li>Blinds are posted automatically</li>
+                        <li>Active player has buttons: Fold, Call/Check, Raise, All In</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>Phases</h3>
+                    <ul>
+                        <li><strong>Waiting</strong> - Join/leave, adjust blinds, refill balance</li>
+                        <li><strong>Pre-flop</strong> - After blinds, first betting round</li>
+                        <li><strong>Flop</strong> - Second betting round</li>
+                        <li><strong>Turn</strong> - Third betting round</li>
+                        <li><strong>River</strong> - Final betting round</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>Controls</h3>
+                    <ul>
+                        <li><strong>+/- Blinds</strong> - Adjust blind levels (only before hand)</li>
+                        <li><strong>End Hand</strong> - Manually select winner</li>
+                        <li><strong>Refill</strong> - Add balance to player (only before hand)</li>
+                        <li><strong>End Game</strong> - Return to setup screen</li>
+                    </ul>
+                </div>
+                <button id="close-guide-btn" class="btn btn-primary">Got it!</button>
+            </div>
+        </div>
+
+        <!-- Winner Selection Modal -->
+        <div id="winner-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Select Winner</h2>
+                <div id="winner-list" class="winner-list"></div>
+                <button id="split-pot-btn" class="btn btn-secondary">Split Pot</button>
+                <button id="cancel-winner-btn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Split Pot Modal -->
+        <div id="split-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Select Players to Split</h2>
+                <div id="split-list" class="winner-list"></div>
+                <button id="confirm-split-btn" class="btn btn-primary">Confirm Split</button>
+                <button id="cancel-split-btn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
