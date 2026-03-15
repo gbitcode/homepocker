@@ -253,7 +253,7 @@ h1 {
     flex-wrap: wrap;
     justify-content: center;
     z-index: 10;
-    width: 650px;
+    width: 550px;
     max-width: 95vw;
     position: relative;
 }
@@ -275,20 +275,20 @@ h1 {
 /* Left bar - rotated 90deg, positioned at left edge */
 .left-bar {
     position: fixed;
-    left: -295px;
+    left: -236px;
     top: 50%;
     transform: translateY(-50%) rotate(90deg);
-    width: 650px;
+    width: 550px;
     max-width: calc(100vh - 20px);
 }
 
 /* Right bar - rotated -90deg, positioned at right edge */
 .right-bar {
     position: fixed;
-    right: -295px;
+    right: -235px;
     top: 50%;
     transform: translateY(-50%) rotate(-90deg);
-    width: 650px;
+    width: 550px;
     max-width: calc(100vh - 20px);
 }
 
