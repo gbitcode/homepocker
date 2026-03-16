@@ -8,11 +8,11 @@
   <a href="https://gbitcode.github.io/homepoker/">🎮 Play Now</a>
 </p>
 
-A simple, free, offline Texas Hold'em poker game tracker for home games with friends.
+A simple, free Texas Hold'em poker game tracker for home games with friends.
 
 ## What is it?
 
-Poker Tracker is a web-based application that helps you run Texas Hold'em poker games without needing chips, apps, or accounts. It runs entirely in your browser, saves progress locally, and works offline.
+Poker Tracker is a web-based application that helps you run Texas Hold'em poker games without needing chips, apps, or accounts. It runs entirely in your browser and saves progress locally.
 
 ## Features
 
@@ -25,7 +25,6 @@ Poker Tracker is a web-based application that helps you run Texas Hold'em poker 
 - **Save/Load**: Persist games locally and load them later
 - **Manual Winner Selection**: Choose winners when players go all-in or hands go to showdown
 - **Split Pot**: Divide winnings among multiple winners
-- **PWA Support**: Install as a standalone app on your device
 
 ## How to Play
 
@@ -46,8 +45,8 @@ Poker Tracker is a web-based application that helps you run Texas Hold'em poker 
 
 1. Once all players have joined, click **Start Hand**
 2. Blinds are automatically posted:
-   - Small Blind: Player to the left of the dealer
-   - Big Blind: Player two positions left of the dealer
+   - 3+ players: Small Blind is left of the dealer, Big Blind is next left
+   - Heads-up: Dealer posts the Small Blind, the other player posts the Big Blind
 3. Each player receives their hole cards (deal your own physical cards)
 
 ### Betting Rounds
@@ -70,7 +69,8 @@ The active player is highlighted. Available actions:
 ### Determining the Winner
 
 - If only one player remains (others folded), they win automatically
-- If multiple players remain after the River, click **End Hand** to select the winner
+- If multiple players remain after the River, click **End Hand** to resolve the pot
+- Side pots are resolved one pot at a time when players are all-in for different amounts
 - Use **Split Pot** if multiple players tie
 
 ### Managing the Game
@@ -103,28 +103,11 @@ The active player is highlighted. Available actions:
 - **Orange**: 15-39% of chip leader
 - **Red**: 0-14% of chip leader
 
-## Installing as a PWA
-
-You can install Poker Tracker as a Progressive Web App (PWA) for a native app-like experience:
-
-### Desktop (Chrome/Edge)
-1. Click the install icon in the address bar
-2. Click "Install"
-
-### Mobile (Android)
-1. Open in Chrome
-2. Tap menu (⋮) → "Add to Home screen"
-
-### Mobile (iOS)
-1. Open in Safari
-2. Tap share icon → "Add to Home Screen"
-
 ## Technical Notes
 
 - Pure HTML, CSS, and JavaScript (jQuery)
 - No server required - runs entirely client-side
 - Data saved in browser's localStorage
-- Works offline after initial load (PWA)
 - Responsive design for various screen sizes
 
 ## Getting Started
@@ -133,4 +116,4 @@ You can install Poker Tracker as a Progressive Web App (PWA) for a native app-li
 2. Open `index.html` in any modern web browser
 3. Start playing!
 
-No installation, dependencies, or internet connection required.
+No installation or build step required.

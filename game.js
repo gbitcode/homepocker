@@ -22,6 +22,7 @@ function rotateModal(btn) {
     const MAX_PLAYERS = 6;
     const STORAGE_KEY = 'pokerTrackerGame';
     const GAMES_LIST_KEY = 'pokerTrackerGamesList';
+    let showdownState = null;
 
     // Game State
     const GameState = {
@@ -45,6 +46,166 @@ function rotateModal(btn) {
     function formatNumber(num) {
         if (num === undefined || num === null) return '0';
         return parseFloat(num.toFixed(2));
+    }
+
+    function createPlayerId() {
+        return `player-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function ensurePlayerIds(players) {
+        players.forEach(player => {
+            if (!player.id) player.id = createPlayerId();
+        });
+    }
+
+    function getPlayerById(playerId) {
+        return GameState.players.find(player => player.id === playerId);
+    }
+
+    function getBlindPositions() {
+        const activeIndexes = GameState.players
+            .map((player, index) => ({ player, index }))
+            .filter(({ player }) => player.balance > 0)
+            .map(({ index }) => index);
+
+        if (activeIndexes.length < 2) return null;
+
+        let dealerIndex = GameState.dealerIndex;
+        if (!activeIndexes.includes(dealerIndex)) {
+            dealerIndex = activeIndexes[0];
+        }
+
+        if (activeIndexes.length === 2) {
+            return {
+                dealerIndex,
+                sbIndex: dealerIndex,
+                bbIndex: findNextPlayerWithBalance(dealerIndex)
+            };
+        }
+
+        const sbIndex = findNextPlayerWithBalance(dealerIndex);
+        return {
+            dealerIndex,
+            sbIndex,
+            bbIndex: findNextPlayerWithBalance(sbIndex)
+        };
+    }
+
+    function buildSidePots() {
+        const hasAllInContributor = GameState.players.some(player => player.isAllIn && player.totalBetThisHand > 0.001);
+        if (!hasAllInContributor) {
+            const totalPot = GameState.players.reduce((sum, player) => sum + player.totalBetThisHand, 0);
+            const eligiblePlayerIds = GameState.players
+                .filter(player => !player.folded && player.totalBetThisHand > 0.001)
+                .map(player => player.id);
+
+            return totalPot > 0.001 && eligiblePlayerIds.length > 0
+                ? [{ amount: totalPot, eligiblePlayerIds, label: 'Pot' }]
+                : [];
+        }
+
+        const contributors = GameState.players
+            .filter(player => player.totalBetThisHand > 0.001)
+            .map(player => ({
+                playerId: player.id,
+                amount: player.totalBetThisHand,
+                folded: player.folded
+            }));
+
+        if (contributors.length === 0) return [];
+
+        const levels = [...new Set(contributors.map(entry => entry.amount))].sort((a, b) => a - b);
+        const pots = [];
+        let previousLevel = 0;
+
+        levels.forEach(level => {
+            const involved = contributors.filter(entry => entry.amount >= level);
+            const amount = (level - previousLevel) * involved.length;
+            const eligiblePlayerIds = involved
+                .filter(entry => !entry.folded)
+                .map(entry => entry.playerId);
+
+            if (amount > 0.001 && eligiblePlayerIds.length > 0) {
+                pots.push({
+                    amount,
+                    eligiblePlayerIds,
+                    label: pots.length === 0 ? 'Main Pot' : `Side Pot ${pots.length}`
+                });
+            }
+
+            previousLevel = level;
+        });
+
+        return pots;
+    }
+
+    function distributePotAmount(playerIds, amount) {
+        const share = amount / playerIds.length;
+        playerIds.forEach(playerId => {
+            const player = getPlayerById(playerId);
+            if (player) player.balance += share;
+        });
+    }
+
+    function finishHand() {
+        showdownState = null;
+        GameState.pot = 0;
+        GameState.isHandInProgress = false;
+        GameState.phase = 'waiting';
+
+        GameState.players.forEach(player => {
+            player.currentBet = 0;
+            player.folded = false;
+            player.isAllIn = false;
+            player.totalBetThisHand = 0;
+            player.hasActed = false;
+        });
+
+        if (GameState.players.length > 0) {
+            GameState.dealerIndex = findNextPlayerWithBalance(GameState.dealerIndex);
+        }
+
+        renderGameScreen();
+        saveGame();
+
+        const withBalance = GameState.players.filter(player => player.balance > 0.001);
+        if (withBalance.length < 2) {
+            setTimeout(() => alert('Not enough players with balance. Waiting for players.'), 500);
+        }
+    }
+
+    function advanceShowdown() {
+        showdownState.currentPotIndex += 1;
+        if (showdownState.currentPotIndex >= showdownState.pots.length) {
+            finishHand();
+            return;
+        }
+        showWinnerModal();
+    }
+
+    function resolveCurrentShowdownPot(winnerIds) {
+        const currentPot = showdownState?.pots[showdownState.currentPotIndex];
+        if (!currentPot || winnerIds.length === 0) return;
+
+        distributePotAmount(winnerIds, currentPot.amount);
+        GameState.pot = Math.max(0, GameState.pot - currentPot.amount);
+        hideWinnerModal();
+        hideSplitModal();
+        advanceShowdown();
+    }
+
+    function startShowdownResolution() {
+        const pots = buildSidePots();
+        if (pots.length === 0) {
+            finishHand();
+            return;
+        }
+
+        showdownState = {
+            pots,
+            currentPotIndex: 0
+        };
+        showWinnerModal();
     }
 
     // Initialize
@@ -117,6 +278,7 @@ function rotateModal(btn) {
             try {
                 const data = JSON.parse(saved);
                 Object.assign(GameState, data);
+                ensurePlayerIds(GameState.players);
                 // Ensure phase is set
                 if (!GameState.phase) {
                     GameState.phase = GameState.isHandInProgress ? 'pre-flop' : 'waiting';
@@ -172,6 +334,7 @@ function rotateModal(btn) {
             try {
                 const state = JSON.parse(game.state);
                 Object.assign(GameState, state);
+                ensurePlayerIds(GameState.players);
                 return true;
             } catch (e) {
                 console.error('Failed to load game:', e);
@@ -212,6 +375,7 @@ function rotateModal(btn) {
         GameState.pot = 0;
         GameState.currentBet = 0;
         GameState.phase = 'waiting';
+        showdownState = null;
 
         showGameScreen();
         renderGameScreen();
@@ -227,12 +391,17 @@ function rotateModal(btn) {
             alert('This seat is already taken!');
             return false;
         }
+        if (GameState.players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
+            alert('Player names must be unique.');
+            return false;
+        }
         if (GameState.players.length >= MAX_PLAYERS) {
             alert('Maximum 6 players!');
             return false;
         }
 
         GameState.players.push({
+            id: createPlayerId(),
             name: name.trim(),
             seat: seat,
             balance: GameState.startingBalance,
@@ -293,6 +462,11 @@ function rotateModal(btn) {
             }
         });
 
+        const blindPositions = getBlindPositions();
+        if (blindPositions) {
+            GameState.dealerIndex = blindPositions.dealerIndex;
+        }
+
         postBlinds();
         advanceToNextPlayer();
         renderGameScreen();
@@ -300,7 +474,12 @@ function rotateModal(btn) {
     }
 
     function postBlinds() {
-        const sbIndex = findNextPlayerWithBalance(GameState.dealerIndex);
+        const blindPositions = getBlindPositions();
+        if (!blindPositions) return;
+
+        GameState.dealerIndex = blindPositions.dealerIndex;
+
+        const sbIndex = blindPositions.sbIndex;
         const sbPlayer = GameState.players[sbIndex];
         const sbAmount = Math.min(GameState.smallBlind, sbPlayer.balance);
 
@@ -310,7 +489,7 @@ function rotateModal(btn) {
         sbPlayer.hasActed = true;
         GameState.pot += sbAmount;
 
-        const bbIndex = findNextPlayerWithBalance(sbIndex);
+        const bbIndex = blindPositions.bbIndex;
         const bbPlayer = GameState.players[bbIndex];
         const bbAmount = Math.min(GameState.bigBlind, bbPlayer.balance);
 
@@ -320,7 +499,7 @@ function rotateModal(btn) {
         bbPlayer.hasActed = false;
         GameState.pot += bbAmount;
 
-        GameState.currentBet = GameState.bigBlind;
+        GameState.currentBet = bbPlayer.currentBet;
         GameState.currentPlayerIndex = bbIndex;
     }
 
@@ -481,7 +660,7 @@ function rotateModal(btn) {
             GameState.phase = 'river';
             renderGameScreen();
             saveGame();
-            showWinnerModal();
+            startShowdownResolution();
             return;
         }
 
@@ -492,97 +671,15 @@ function rotateModal(btn) {
             renderGameScreen();
             saveGame();
         } else {
-            showWinnerModal();
+            startShowdownResolution();
         }
     }
 
     function awardPot(winners) {
-        // Get all non-folded players with their total bets
-        const contenders = GameState.players
-            .filter(p => !p.folded)
-            .map(p => ({ name: p.name, bet: p.totalBetThisHand }))
-            .sort((a, b) => a.bet - b.bet);
-
-        if (contenders.length === 0 || winners.length === 0) return;
-
-        // Calculate minimum bet among winners (they can only win up to what they contributed)
-        const winnerBets = winners.map(w => {
-            const c = contenders.find(c => c.name === w.name);
-            return c ? c.bet : 0;
-        });
-        const minWinnerBet = Math.min(...winnerBets);
-
-        // Main pot: minWinnerBet * number of contenders
-        // Each winner can only win minWinnerBet from each contender
-        const mainPotPerPlayer = minWinnerBet;
-        const mainPotTotal = mainPotPerPlayer * contenders.length;
-
-        // Award main pot to winners
-        const mainShare = mainPotTotal / winners.length;
-        winners.forEach(w => {
-            const idx = GameState.players.findIndex(p => p.name === w.name);
-            if (idx !== -1) GameState.players[idx].balance += mainShare;
-        });
-
-        // Side pots: excess contributions from players who bet more than minWinnerBet
-        contenders.forEach(c => {
-            const excess = c.bet - minWinnerBet;
-            if (excess > 0.001) {
-                // This excess goes to players who bet more than minWinnerBet
-                // Or back to the contributor if no one else can contest
-                const eligibleWinners = winners.filter(w => {
-                    const winnerBet = contenders.find(cont => cont.name === w.name)?.bet || 0;
-                    return winnerBet >= c.bet;
-                });
-
-                if (eligibleWinners.length > 0) {
-                    const sideShare = excess / eligibleWinners.length;
-                    eligibleWinners.forEach(w => {
-                        const idx = GameState.players.findIndex(p => p.name === w.name);
-                        if (idx !== -1) GameState.players[idx].balance += sideShare;
-                    });
-                } else {
-                    // No eligible winner - return to contributor
-                    const idx = GameState.players.findIndex(p => p.name === c.name);
-                    if (idx !== -1) GameState.players[idx].balance += excess;
-                }
-            }
-        });
-
-        // Any remaining pot from folded players goes to winners
-        const totalContributed = contenders.reduce((sum, c) => sum + c.bet, 0);
-        const foldedContributions = GameState.pot - totalContributed;
-        if (foldedContributions > 0.001 && winners.length > 0) {
-            const foldedShare = foldedContributions / winners.length;
-            winners.forEach(w => {
-                const idx = GameState.players.findIndex(p => p.name === w.name);
-                if (idx !== -1) GameState.players[idx].balance += foldedShare;
-            });
-        }
-
-        GameState.pot = 0;
-        GameState.isHandInProgress = false;
-        GameState.phase = 'waiting';
-
-        GameState.players.forEach(p => {
-            p.currentBet = 0;
-            p.folded = false;
-            p.isAllIn = false;
-            p.totalBetThisHand = 0;
-            p.hasActed = false;
-        });
-
-        if (GameState.players.length > 0) {
-            GameState.dealerIndex = findNextPlayerWithBalance(GameState.dealerIndex);
-        }
-
-        renderGameScreen();
-        saveGame();
-
-        const withBalance = GameState.players.filter(p => p.balance > 0.001);
-        if (withBalance.length < 2) {
-            setTimeout(() => alert('Not enough players with balance. Waiting for players.'), 500);
-        }
+        const winnerIds = winners.map(winner => winner.id);
+        if (winnerIds.length === 0) return;
+        distributePotAmount(winnerIds, GameState.pot);
+        finishHand();
     }
 
     // Render Functions
@@ -613,8 +710,11 @@ function rotateModal(btn) {
         let sbIndex = -1;
         let bbIndex = -1;
         if (GameState.isHandInProgress && GameState.players.length > 0) {
-            sbIndex = findNextPlayerWithBalance(GameState.dealerIndex);
-            bbIndex = findNextPlayerWithBalance(sbIndex);
+            const blindPositions = getBlindPositions();
+            if (blindPositions) {
+                sbIndex = blindPositions.sbIndex;
+                bbIndex = blindPositions.bbIndex;
+            }
         }
 
         // Find max balance for HP bar calculation
@@ -873,10 +973,14 @@ function rotateModal(btn) {
     }
 
     function showWinnerModal() {
+        const currentPot = showdownState?.pots[showdownState.currentPotIndex];
+        if (!currentPot) return;
+
         const $list = $('#winner-list').empty();
-        GameState.players.filter(p => !p.folded).forEach(p => {
-            $list.append($('<button class="winner-btn">').text(`${p.name} (${formatNumber(p.balance)})`).data('player', p));
+        GameState.players.filter(p => currentPot.eligiblePlayerIds.includes(p.id)).forEach(p => {
+            $list.append($('<button class="winner-btn">').text(`${p.name} (${formatNumber(p.balance)})`).data('playerId', p.id));
         });
+        $('#winner-modal .winner-right h2').text(`Select ${currentPot.label} Winner`);
         // Get dealer's rotation
         const dealer = GameState.players[GameState.dealerIndex];
         const rotation = dealer ? (dealer.rotation || 0) : 0;
@@ -888,10 +992,14 @@ function rotateModal(btn) {
     function hideWinnerModal() { $('#winner-modal').hide(); }
 
     function showSplitModal() {
+        const currentPot = showdownState?.pots[showdownState.currentPotIndex];
+        if (!currentPot) return;
+
         const $list = $('#split-list').empty();
-        GameState.players.filter(p => !p.folded).forEach(p => {
-            $list.append($('<button class="winner-btn">').text(`${p.name} (${formatNumber(p.balance)})`).data('player', p).on('click', function() { $(this).toggleClass('selected'); }));
+        GameState.players.filter(p => currentPot.eligiblePlayerIds.includes(p.id)).forEach(p => {
+            $list.append($('<button class="winner-btn">').text(`${p.name} (${formatNumber(p.balance)})`).data('playerId', p.id).on('click', function() { $(this).toggleClass('selected'); }));
         });
+        $('#split-modal h2').text(`Select Players to Split ${currentPot.label}`);
         // Get dealer's rotation
         const dealer = GameState.players[GameState.dealerIndex];
         const rotation = dealer ? (dealer.rotation || 0) : 0;
@@ -1119,20 +1227,19 @@ function rotateModal(btn) {
         });
 
         $(document).on('click', '.end-hand-btn', function() {
-            if (GameState.isHandInProgress && confirm('End hand and select winner?')) showWinnerModal();
+            if (GameState.isHandInProgress && confirm('End hand and select winner?')) startShowdownResolution();
         });
 
         // Winner modal
         $(document).on('click', '.winner-btn:not(.selected)', function() {
             if ($(this).closest('#split-modal').length) return;
-            hideWinnerModal();
-            awardPot([$(this).data('player')]);
+            resolveCurrentShowdownPot([$(this).data('playerId')]);
         });
         $('#split-pot-btn').on('click', () => { hideWinnerModal(); showSplitModal(); });
         $('#cancel-winner-btn').on('click', () => { hideWinnerModal(); renderGameScreen(); });
         $('#confirm-split-btn').on('click', () => {
             const selected = $('#split-list .winner-btn.selected');
-            if (selected.length >= 2) { hideSplitModal(); awardPot(selected.map(function() { return $(this).data('player'); }).get()); }
+            if (selected.length >= 2) { resolveCurrentShowdownPot(selected.map(function() { return $(this).data('playerId'); }).get()); }
             else alert('Select at least 2 players.');
         });
         $('#cancel-split-btn').on('click', () => { hideSplitModal(); showWinnerModal(); });
