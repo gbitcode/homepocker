@@ -41,6 +41,18 @@ h1 {
     padding: 20px;
 }
 
+.setup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.setup-actions .btn {
+    width: 100%;
+    margin-top: 0;
+}
+
 .settings-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -115,7 +127,7 @@ h1 {
     background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
     color: white;
     width: 100%;
-    margin-top: 0px;
+    margin-top: 0;
 }
 
 .btn-success {

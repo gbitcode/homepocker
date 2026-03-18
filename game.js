@@ -62,6 +62,66 @@ function rotateModal(btn) {
         return GameState.players.find(player => player.id === playerId);
     }
 
+    function normalizeLoadedState(data) {
+        const defaults = {
+            players: [],
+            pot: 0,
+            currentBet: 0,
+            dealerIndex: 0,
+            currentPlayerIndex: 0,
+            phase: 'waiting',
+            smallBlind: 0.5,
+            bigBlind: 1,
+            startingBalance: 100,
+            isHandInProgress: false,
+            minRaise: 0,
+            lastRaiserIndex: -1
+        };
+
+        Object.assign(GameState, defaults, data || {});
+        GameState.players = Array.isArray(GameState.players) ? GameState.players : [];
+        ensurePlayerIds(GameState.players);
+
+        GameState.players.forEach(player => {
+            if (player.currentBet === undefined) player.currentBet = 0;
+            if (player.folded === undefined) player.folded = false;
+            if (player.isAllIn === undefined) player.isAllIn = false;
+            if (player.totalBetThisHand === undefined) player.totalBetThisHand = 0;
+            if (player.hasActed === undefined) player.hasActed = false;
+            if (player.rotation === undefined) player.rotation = 0;
+        });
+
+        if (!GameState.phase) {
+            GameState.phase = GameState.isHandInProgress ? 'pre-flop' : 'waiting';
+        }
+        if (GameState.phase === 'waiting') {
+            GameState.isHandInProgress = false;
+        }
+
+        GameState.pendingJoinSeat = null;
+        GameState.pendingAllInRotation = '0deg';
+        showdownState = null;
+    }
+
+    function getCurrentSavedGameData() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return null;
+
+        try {
+            const data = JSON.parse(saved);
+            return Array.isArray(data.players) && data.players.length > 0 ? data : null;
+        } catch (e) {
+            console.error('Failed to parse saved game:', e);
+            return null;
+        }
+    }
+
+    function updateLoadGameButtonVisibility() {
+        const hasCurrentSave = !!getCurrentSavedGameData();
+        const hasSavedGames = getSavedGamesList().length > 0;
+        $('#load-game-btn').toggle(hasCurrentSave || hasSavedGames);
+    }
+
     function getBlindPositions() {
         const activeIndexes = GameState.players
             .map((player, index) => ({ player, index }))
@@ -213,26 +273,13 @@ function rotateModal(btn) {
         setupEventListeners();
         updateRecommendedBlinds();
 
-        // Check for saved games and show load button if any exist
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        const gamesList = getSavedGamesList();
-        if (savedData || gamesList.length > 0) {
-            try {
-                const data = savedData ? JSON.parse(savedData) : null;
-                if ((data && data.players && data.players.length > 0) || gamesList.length > 0) {
-                    $('#load-game-btn').show();
-                }
-            } catch (e) {
-                if (gamesList.length > 0) {
-                    $('#load-game-btn').show();
-                }
-            }
-        }
+        updateLoadGameButtonVisibility();
 
-        // Auto-load saved game if exists
         if (loadSavedGame() && GameState.players.length > 0) {
             showGameScreen();
             renderGameScreen();
+        } else {
+            showSetupScreen();
         }
     }
 
@@ -273,25 +320,11 @@ function rotateModal(btn) {
     }
 
     function loadSavedGame() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                Object.assign(GameState, data);
-                ensurePlayerIds(GameState.players);
-                // Ensure phase is set
-                if (!GameState.phase) {
-                    GameState.phase = GameState.isHandInProgress ? 'pre-flop' : 'waiting';
-                }
-                if (GameState.phase === 'waiting') {
-                    GameState.isHandInProgress = false;
-                }
-                return true;
-            } catch (e) {
-                console.error('Failed to load saved game:', e);
-            }
-        }
-        return false;
+        const data = getCurrentSavedGameData();
+        if (!data) return false;
+
+        normalizeLoadedState(data);
+        return true;
     }
 
     function clearSavedGame() {
@@ -313,10 +346,11 @@ function rotateModal(btn) {
 
     function saveGameToList(gameState, name) {
         const gamesList = getSavedGamesList();
+        const savedAt = new Date();
         const gameEntry = {
             id: Date.now().toString(),
-            name: name || `Game ${gamesList.length + 1}`,
-            date: new Date().toLocaleString(),
+            name: name || `Game ${savedAt.toLocaleString()}`,
+            date: savedAt.toLocaleString(),
             players: gameState.players.map(p => ({ name: p.name, balance: p.balance })),
             smallBlind: gameState.smallBlind,
             bigBlind: gameState.bigBlind,
@@ -333,8 +367,7 @@ function rotateModal(btn) {
         if (game) {
             try {
                 const state = JSON.parse(game.state);
-                Object.assign(GameState, state);
-                ensurePlayerIds(GameState.players);
+                normalizeLoadedState(state);
                 return true;
             } catch (e) {
                 console.error('Failed to load game:', e);
@@ -358,6 +391,7 @@ function rotateModal(btn) {
     function showSetupScreen() {
         $('#game-screen').hide();
         $('#setup-screen').show();
+        updateLoadGameButtonVisibility();
     }
 
     // Game Functions
@@ -1015,35 +1049,17 @@ function rotateModal(btn) {
         const $list = $('#saved-games-list').empty();
         const gamesList = getSavedGamesList();
 
-        // Also check for current game in progress
-        const currentSaved = localStorage.getItem(STORAGE_KEY);
-        if (currentSaved) {
-            try {
-                const data = JSON.parse(currentSaved);
-                if (data.players && data.players.length > 0) {
-                    gamesList.unshift({
-                        id: 'current',
-                        name: 'Current Game',
-                        date: 'In progress',
-                        players: data.players.map(p => ({ name: p.name, balance: p.balance })),
-                        smallBlind: data.smallBlind,
-                        bigBlind: data.bigBlind,
-                        isCurrent: true
-                    });
-                }
-            } catch (e) {}
-        }
-
         if (gamesList.length === 0) {
             $list.append('<div style="opacity: 0.7; padding: 15px;">No saved games found</div>');
         } else {
             gamesList.forEach(game => {
                 const $gameBtn = $('<button class="winner-btn">');
-                const playerNames = game.players.map(p => p.name).join(', ');
+                const playerNames = game.players.map(p => p.name).join(', ') || 'None';
                 const playerInfo = game.players.length > 0 ? `${game.players.length} players` : 'No players';
                 $gameBtn.html(`
                     <div style="font-weight: bold;">${game.name}</div>
                     <div style="font-size: 0.85rem; opacity: 0.8;">${game.date}</div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Attendees: ${playerNames}</div>
                     <div style="font-size: 0.8rem; opacity: 0.7;">${playerInfo} - SB: ${game.smallBlind} / BB: ${game.bigBlind}</div>
                 `);
                 $gameBtn.data('gameId', game.id);
@@ -1051,34 +1067,25 @@ function rotateModal(btn) {
                 const $btnContainer = $('<div style="display: flex; gap: 5px;">');
                 $btnContainer.append($gameBtn.on('click', function() {
                     const gameId = $(this).data('gameId');
-                    if (gameId === 'current') {
-                        if (loadSavedGame() && GameState.players.length > 0) {
-                            hideLoadModal();
-                            showGameScreen();
-                            renderGameScreen();
-                        }
-                    } else {
-                        if (loadGameFromList(gameId)) {
-                            hideLoadModal();
-                            showGameScreen();
-                            renderGameScreen();
-                            saveGame(); // Save as current game
-                        }
+                    if (loadGameFromList(gameId)) {
+                        hideLoadModal();
+                        showGameScreen();
+                        renderGameScreen();
+                        saveGame(); // Save as current game
+                        updateLoadGameButtonVisibility();
                     }
                 }));
 
-                // Delete button (not for current game)
-                if (!game.isCurrent) {
-                    const $deleteBtn = $('<button class="btn btn-tiny btn-decrease" style="padding: 8px 12px;">Delete</button>');
-                    $deleteBtn.on('click', (e) => {
-                        e.stopPropagation();
-                        if (confirm(`Delete "${game.name}"?`)) {
-                            deleteGameFromList(game.id);
-                            showLoadModal(); // Refresh list
-                        }
-                    });
-                    $btnContainer.append($deleteBtn);
-                }
+                const $deleteBtn = $('<button class="btn btn-tiny btn-decrease" style="padding: 8px 12px;">Delete</button>');
+                $deleteBtn.on('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete "${game.name}"?`)) {
+                        deleteGameFromList(game.id);
+                        updateLoadGameButtonVisibility();
+                        showLoadModal(); // Refresh list
+                    }
+                });
+                $btnContainer.append($deleteBtn);
 
                 $list.append($btnContainer);
             });
@@ -1099,6 +1106,7 @@ function rotateModal(btn) {
                 clearSavedGame();
                 localStorage.removeItem(GAMES_LIST_KEY);
                 GameState.players = [];
+                updateLoadGameButtonVisibility();
                 location.reload();
             }
         });
@@ -1155,9 +1163,8 @@ function rotateModal(btn) {
             if (action === 'save') {
                 if (GameState.players.length > 0) {
                     saveGame();
-                    const playerNames = GameState.players.map(p => p.name).slice(0, 3).join(', ') + (GameState.players.length > 3 ? '...' : '');
-                    const gameName = `${playerNames} - ${new Date().toLocaleDateString()}`;
-                    saveGameToList(GameState, gameName);
+                    saveGameToList(GameState);
+                    updateLoadGameButtonVisibility();
                     alert('Game saved!');
                 } else {
                     alert('No game to save.');
@@ -1177,13 +1184,13 @@ function rotateModal(btn) {
             } else if (action === 'end') {
                 if (confirm('End game and return to setup?')) {
                     saveGame();
-                    GameState.players = [];
-                    GameState.pot = 0;
-                    GameState.currentBet = 0;
-                    GameState.phase = 'waiting';
-                    GameState.isHandInProgress = false;
-                    localStorage.removeItem(STORAGE_KEY);
-                    location.reload();
+                    saveGameToList(GameState);
+                    clearSavedGame();
+                    hideLoadModal();
+                    hideWinnerModal();
+                    hideSplitModal();
+                    hideAllInModal();
+                    showSetupScreen();
                 }
             } else if (action === 'fullscreen') {
                 if (!document.fullscreenElement) {
